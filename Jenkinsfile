@@ -16,8 +16,18 @@ pipeline {
 
         stage('Build') {
             steps {
-                echo "========== BUILD =========="
                 sh 'mvn clean package'
+            }
+        }
+
+        stage('SonarQube Analysis') {
+            steps {
+                withSonarQubeEnv('SonarQube') {
+                    sh '''
+                        mvn sonar:sonar \
+                        -Dsonar.projectKey=automation-deployment
+                    '''
+                }
             }
         }
 
@@ -31,11 +41,11 @@ pipeline {
     post {
 
         success {
-            echo "Build Successful"
+            echo 'Build Successful'
         }
 
         failure {
-            echo "Build Failed"
+            echo 'Build Failed'
         }
 
         always {
