@@ -2,33 +2,27 @@ pipeline {
 
     agent any
 
-    tools {
-        maven 'Maven3'
+    options {
+        timestamps()
+        buildDiscarder(logRotator(numToKeepStr: '10'))
+        disableConcurrentBuilds()
     }
 
     environment {
-        APP_NAME = 'automation-deployment'
+        APP_NAME = "automation-deployment"
     }
 
     stages {
 
-        stage('Checkout') {
-            steps {
-                echo '========== CHECKOUT =========='
-                checkout scm
-            }
-        }
-
         stage('Build') {
             steps {
-                echo '========== BUILD =========='
+                echo "========== BUILD =========="
                 sh 'mvn clean package'
             }
         }
 
-        stage('Archive Artifact') {
+        stage('Archive') {
             steps {
-                echo '========== ARCHIVE =========='
                 archiveArtifacts artifacts: 'target/*.war', fingerprint: true
             }
         }
@@ -37,11 +31,11 @@ pipeline {
     post {
 
         success {
-            echo 'Pipeline completed successfully.'
+            echo "Build Successful"
         }
 
         failure {
-            echo 'Pipeline failed.'
+            echo "Build Failed"
         }
 
         always {
