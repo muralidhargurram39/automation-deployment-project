@@ -131,7 +131,7 @@ pipeline {
                         sh '''
                         mvn deploy \
                             -DskipTests \
-                            -Drevision='"${VERSION}"' \
+                            -Drevision=${VERSION} \
                             -s "$MAVEN_SETTINGS"
                         '''
 
