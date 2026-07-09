@@ -10,34 +10,40 @@ pipeline {
         timestamps()
         disableConcurrentBuilds()
         buildDiscarder(logRotator(numToKeepStr: '20'))
+        ansiColor('xterm')
     }
 
     environment {
 
+        // Application
         APP_NAME = "automation-deployment"
-
         GROUP_ID = "com/example"
-
         ARTIFACT_ID = "automation-deployment-project"
 
+        // Version
         VERSION = "1.0.${BUILD_NUMBER}"
 
-        SONAR_PROJECT_KEY = "automation-deployment"
-
-        SONAR_PROJECT_NAME = "Automation Deployment Project"
-
+        // Nexus Maven
         NEXUS_URL = "http://nexus:8081"
-
         NEXUS_REPOSITORY = "maven-releases1"
 
-        IMAGE_NAME = "automation-deployment"
+        // Nexus Docker Registry
+        DOCKER_REGISTRY = "nexus:8083"
+        DOCKER_REPOSITORY = "automation-deployment"
 
-        IMAGE_TAG = "${BUILD_NUMBER}"
+        IMAGE_VERSION = "${DOCKER_REGISTRY}/${DOCKER_REPOSITORY}:${VERSION}"
+        IMAGE_LATEST  = "${DOCKER_REGISTRY}/${DOCKER_REPOSITORY}:latest"
 
+        // SonarQube
+        SONAR_PROJECT_KEY = "automation-deployment"
+        SONAR_PROJECT_NAME = "automation-deployment"
+
+        // Deployment
         CONTAINER_NAME = "automation-app"
+        HOST_PORT = "9091"
+        CONTAINER_PORT = "8080"
 
-        CONTAINER_PORT = "9091"
-
+        HEALTH_URL = "http://host.docker.internal:9091"
     }
 
     stages {
@@ -131,7 +137,7 @@ pipeline {
                         sh '''
                         mvn deploy \
                             -DskipTests \
-                            -Drevision=${VERSION} \
+                            -Drevision='"${VERSION}"' \
                             -s "$MAVEN_SETTINGS"
                         '''
 
