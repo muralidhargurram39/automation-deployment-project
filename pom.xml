@@ -7,15 +7,25 @@
 
     <groupId>com.example</groupId>
     <artifactId>automation-deployment-project</artifactId>
-    <version>1.0.0</version>
+
+    <!-- CI Friendly Version -->
+    <version>${revision}</version>
+
     <packaging>war</packaging>
 
     <name>Automation Deployment Project</name>
 
     <properties>
+
+        <revision>1.0.0</revision>
+
         <maven.compiler.source>17</maven.compiler.source>
         <maven.compiler.target>17</maven.compiler.target>
+
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+
+        <failOnMissingWebXml>false</failOnMissingWebXml>
+
     </properties>
 
     <dependencies>
@@ -27,13 +37,6 @@
             <scope>provided</scope>
         </dependency>
 
-        <dependency>
-            <groupId>junit</groupId>
-            <artifactId>junit</artifactId>
-            <version>4.13.2</version>
-            <scope>test</scope>
-        </dependency>
-
     </dependencies>
 
     <build>
@@ -43,25 +46,37 @@
         <plugins>
 
             <plugin>
-                <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.14.0</version>
-            </plugin>
 
-            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+
                 <artifactId>maven-war-plugin</artifactId>
+
                 <version>3.4.0</version>
+
+                <configuration>
+
+                    <failOnMissingWebXml>false</failOnMissingWebXml>
+
+                </configuration>
+
             </plugin>
 
         </plugins>
 
     </build>
+
     <distributionManagement>
 
         <repository>
+
             <id>nexus</id>
+
             <name>Nexus Releases</name>
-         <url>http://nexus:8081/repository/maven-releases1/</url>
+
+            <url>http://nexus:8081/repository/maven-releases1/</url>
+
         </repository>
 
     </distributionManagement>
+
 </project>

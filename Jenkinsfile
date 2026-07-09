@@ -4,34 +4,71 @@ pipeline {
 
     options {
         timestamps()
-        buildDiscarder(logRotator(numToKeepStr: '10'))
         disableConcurrentBuilds()
+        buildDiscarder(logRotator(numToKeepStr: '20'))
     }
 
     environment {
-        APP_NAME = "automation-deployment"
+
+        BUILD_VERSION = "1.0.${BUILD_NUMBER}"
+
     }
 
     stages {
 
-        stage('Build') {
+        stage('Checkout') {
+
             steps {
-                sh 'mvn clean package'
+
+                checkout scm
+
             }
+
+        }
+
+        stage('Build') {
+
+            steps {
+
+                echo "========== BUILD =========="
+
+                echo "Version : ${BUILD_VERSION}"
+
+                sh """
+                    mvn clean package \
+                    -Drevision=${BUILD_VERSION}
+                """
+
+            }
+
         }
 
         stage('SonarQube Analysis') {
+
             steps {
+
                 withSonarQubeEnv('SonarQube') {
-                    sh 'mvn sonar:sonar'
+
+                    sh """
+                        mvn sonar:sonar \
+                        -Drevision=${BUILD_VERSION}
+                    """
+
                 }
+
             }
+
         }
 
-        stage('Archive') {
+        stage('Archive Artifact') {
+
             steps {
-                archiveArtifacts artifacts: 'target/*.war', fingerprint: true
+
+                archiveArtifacts artifacts: 'target/*.war',
+                                 fingerprint: true
+
             }
+
         }
 
         stage('Deploy to Nexus') {
@@ -53,10 +90,11 @@ pipeline {
                         )
                     ]) {
 
-                        sh '''
-                        mvn deploy \
-                          -s $MAVEN_SETTINGS
-                        '''
+                        sh """
+                            mvn deploy \
+                            -s \$MAVEN_SETTINGS \
+                            -Drevision=${BUILD_VERSION}
+                        """
 
                     }
 
@@ -71,15 +109,26 @@ pipeline {
     post {
 
         success {
-            echo 'Deployment Successful'
+
+            echo "=================================="
+            echo "Build Successful"
+            echo "Artifact Version : ${BUILD_VERSION}"
+            echo "=================================="
+
         }
 
         failure {
-            echo 'Deployment Failed'
+
+            echo "=================================="
+            echo "Build Failed"
+            echo "=================================="
+
         }
 
         always {
+
             cleanWs()
+
         }
 
     }
