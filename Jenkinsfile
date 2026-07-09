@@ -164,7 +164,7 @@ pipeline {
 
                 sh """
                     ls -lh deployment.war
-                    file deployment.war
+                    sha1sum deployment.war
                 """
 
             }
