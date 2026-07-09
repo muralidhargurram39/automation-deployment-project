@@ -3,7 +3,7 @@ pipeline {
     agent any
 
     tools {
-        maven 'Maven3'
+        maven 'Maven'
     }
 
     options {
@@ -14,19 +14,30 @@ pipeline {
 
     environment {
 
-        APP_NAME           = "automation-deployment"
-        GROUP_ID           = "com/example"
-        ARTIFACT_ID        = "automation-deployment-project"
+        APP_NAME = "automation-deployment"
 
-        VERSION            = "1.0.${BUILD_NUMBER}"
+        GROUP_ID = "com/example"
 
-        SONAR_PROJECT_KEY  = "automation-deployment"
+        ARTIFACT_ID = "automation-deployment-project"
+
+        VERSION = "1.0.${BUILD_NUMBER}"
+
+        SONAR_PROJECT_KEY = "automation-deployment"
+
         SONAR_PROJECT_NAME = "Automation Deployment Project"
 
-        NEXUS_URL          = "http://nexus:8081"
-        NEXUS_REPOSITORY   = "maven-releases1"
+        NEXUS_URL = "http://nexus:8081"
 
-        TOMCAT_URL         = "http://tomcat:8080"
+        NEXUS_REPOSITORY = "maven-releases1"
+
+        IMAGE_NAME = "automation-deployment"
+
+        IMAGE_TAG = "${BUILD_NUMBER}"
+
+        CONTAINER_NAME = "automation-app"
+
+        CONTAINER_PORT = "9091"
+
     }
 
     stages {
@@ -38,7 +49,9 @@ pipeline {
                 echo "========== CHECKOUT =========="
 
                 checkout scm
+
             }
+
         }
 
         stage('Build + Unit Test + SonarQube') {
@@ -50,7 +63,7 @@ pipeline {
                 withSonarQubeEnv('SonarQube') {
 
                     sh """
-                        mvn clean verify sonar:sonar \
+                    mvn clean verify sonar:sonar \
                         -Drevision=${VERSION} \
                         -Dsonar.projectKey=${SONAR_PROJECT_KEY} \
                         -Dsonar.projectName="${SONAR_PROJECT_NAME}"
@@ -85,7 +98,7 @@ pipeline {
                 echo "========== PACKAGE =========="
 
                 sh """
-                    mvn package \
+                mvn package \
                     -DskipTests \
                     -Drevision=${VERSION}
                 """
@@ -98,7 +111,7 @@ pipeline {
 
             steps {
 
-                echo "========== NEXUS DEPLOY =========="
+                echo "========== PUBLISH TO NEXUS =========="
 
                 withCredentials([
                     usernamePassword(
@@ -115,12 +128,12 @@ pipeline {
                         )
                     ]) {
 
-                        sh """
-                            mvn deploy \
+                        sh '''
+                        mvn deploy \
                             -DskipTests \
-                            -Drevision=${VERSION} \
-                            -s ${MAVEN_SETTINGS}
-                        """
+                            -Drevision='"${VERSION}"' \
+                            -s "$MAVEN_SETTINGS"
+                        '''
 
                     }
 
@@ -144,11 +157,11 @@ pipeline {
                     )
                 ]) {
 
-                    sh """
-                        curl -u ${NEXUS_USER}:${NEXUS_PASS} \
-                        -o deployment.war \
-                        ${NEXUS_URL}/repository/${NEXUS_REPOSITORY}/${GROUP_ID}/${ARTIFACT_ID}/${VERSION}/${ARTIFACT_ID}-${VERSION}.war
-                    """
+                    sh '''
+                    curl -u "$NEXUS_USER:$NEXUS_PASS" \
+                    -o deployment.war \
+                    "$NEXUS_URL/repository/$NEXUS_REPOSITORY/$GROUP_ID/$ARTIFACT_ID/$VERSION/$ARTIFACT_ID-$VERSION.war"
+                    '''
 
                 }
 
@@ -160,57 +173,77 @@ pipeline {
 
             steps {
 
-                echo "========== VERIFY =========="
+                echo "========== VERIFY ARTIFACT =========="
 
-                sh """
-                    ls -lh deployment.war
-                    sha1sum deployment.war
-                """
+                sh '''
+                ls -lh deployment.war
+                sha1sum deployment.war
+                '''
 
             }
 
         }
 
-        stage('Deploy to Tomcat') {
+        stage('Build Docker Image') {
 
             steps {
 
-                echo "========== DEPLOY =========="
+                echo "========== BUILD DOCKER IMAGE =========="
 
-                withCredentials([
-                    usernamePassword(
-                        credentialsId: 'tomcat-cred',
-                        usernameVariable: 'TOMCAT_USER',
-                        passwordVariable: 'TOMCAT_PASS'
-                    )
-                ]) {
-
-                    sh """
-                        curl -v \
-                        -u ${TOMCAT_USER}:${TOMCAT_PASS} \
-                        --upload-file deployment.war \
-                        "${TOMCAT_URL}/manager/text/deploy?path=/${APP_NAME}&update=true"
-                    """
-
-                }
+                sh '''
+                docker build \
+                    -t ${IMAGE_NAME}:${IMAGE_TAG} \
+                    .
+                '''
 
             }
 
         }
 
-        stage('Health Check') {
+        stage('Verify Docker Image') {
+
+            steps {
+
+                echo "========== VERIFY DOCKER IMAGE =========="
+
+                sh '''
+                docker images | grep ${IMAGE_NAME}
+                '''
+
+            }
+
+        }
+
+        stage('Deploy Docker Container') {
+
+            steps {
+
+                echo "========== DEPLOY DOCKER CONTAINER =========="
+
+                sh '''
+                docker rm -f ${CONTAINER_NAME} || true
+
+                docker run -d \
+                    --name ${CONTAINER_NAME} \
+                    -p ${CONTAINER_PORT}:8080 \
+                    ${IMAGE_NAME}:${IMAGE_TAG}
+                '''
+
+            }
+
+        }
+
+        stage('Container Health Check') {
 
             steps {
 
                 echo "========== HEALTH CHECK =========="
 
-                sh """
+                sh '''
+                sleep 15
 
-                    sleep 10
-
-                    curl -I http://tomcat:8080/${APP_NAME}/
-
-                """
+                curl -I http://host.docker.internal:${CONTAINER_PORT}
+                '''
 
             }
 
@@ -222,18 +255,19 @@ pipeline {
 
         success {
 
-            echo "======================================"
-            echo "BUILD SUCCESSFUL"
-            echo "Version : ${VERSION}"
-            echo "======================================"
+            echo "=========================================="
+            echo "PIPELINE COMPLETED SUCCESSFULLY"
+            echo "Application Version : ${VERSION}"
+            echo "Docker Image : ${IMAGE_NAME}:${IMAGE_TAG}"
+            echo "=========================================="
 
         }
 
         failure {
 
-            echo "======================================"
-            echo "BUILD FAILED"
-            echo "======================================"
+            echo "=========================================="
+            echo "PIPELINE FAILED"
+            echo "=========================================="
 
         }
 
