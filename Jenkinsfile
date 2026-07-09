@@ -3,7 +3,7 @@ pipeline {
     agent any
 
     tools {
-        maven 'Maven3'
+        maven 'Maven'
     }
 
     options {
@@ -14,24 +14,19 @@ pipeline {
 
     environment {
 
-        APP_NAME           = 'automation-deployment'
-
-        GROUP_ID           = 'com/example'
-
-        ARTIFACT_ID        = 'automation-deployment-project'
+        APP_NAME           = "automation-deployment"
+        GROUP_ID           = "com/example"
+        ARTIFACT_ID        = "automation-deployment-project"
 
         VERSION            = "1.0.${BUILD_NUMBER}"
 
-        NEXUS_URL          = 'http://nexus:8081'
+        SONAR_PROJECT_KEY  = "automation-deployment"
+        SONAR_PROJECT_NAME = "Automation Deployment Project"
 
-        NEXUS_REPOSITORY   = 'maven-releases1'
+        NEXUS_URL          = "http://nexus:8081"
+        NEXUS_REPOSITORY   = "maven-releases1"
 
-        TOMCAT_URL         = 'http://tomcat:8080'
-
-        SONAR_PROJECT_KEY  = 'automation-deployment'
-
-        SONAR_PROJECT_NAME = 'automation-deployment'
-
+        TOMCAT_URL         = "http://tomcat:8080"
     }
 
     stages {
@@ -46,34 +41,19 @@ pipeline {
             }
         }
 
-        stage('Build & Unit Tests') {
+        stage('Build + Unit Test + SonarQube') {
 
             steps {
 
-                echo "========== BUILD =========="
-
-                sh """
-                    mvn clean verify \
-                    -Drevision=${env.VERSION}
-                """
-
-            }
-
-        }
-
-        stage('SonarQube Analysis') {
-
-            steps {
-
-                echo "========== SONARQUBE =========="
+                echo "========== BUILD / TEST / SONAR =========="
 
                 withSonarQubeEnv('SonarQube') {
 
                     sh """
-                        mvn sonar:sonar \
-                        -Drevision=${env.VERSION} \
-                        -Dsonar.projectKey=${env.SONAR_PROJECT_KEY} \
-                        -Dsonar.projectName=${env.SONAR_PROJECT_NAME}
+                        mvn clean verify sonar:sonar \
+                        -Drevision=${VERSION} \
+                        -Dsonar.projectKey=${SONAR_PROJECT_KEY} \
+                        -Dsonar.projectName="${SONAR_PROJECT_NAME}"
                     """
 
                 }
@@ -88,7 +68,7 @@ pipeline {
 
                 echo "========== QUALITY GATE =========="
 
-                timeout(time: 5, unit: 'MINUTES') {
+                timeout(time: 10, unit: 'MINUTES') {
 
                     waitForQualityGate abortPipeline: true
 
@@ -98,11 +78,27 @@ pipeline {
 
         }
 
+        stage('Package') {
+
+            steps {
+
+                echo "========== PACKAGE =========="
+
+                sh """
+                    mvn package \
+                    -DskipTests \
+                    -Drevision=${VERSION}
+                """
+
+            }
+
+        }
+
         stage('Publish Artifact to Nexus') {
 
             steps {
 
-                echo "========== PUBLISH TO NEXUS =========="
+                echo "========== NEXUS DEPLOY =========="
 
                 withCredentials([
                     usernamePassword(
@@ -121,7 +117,8 @@ pipeline {
 
                         sh """
                             mvn deploy \
-                            -Drevision=${env.VERSION} \
+                            -DskipTests \
+                            -Drevision=${VERSION} \
                             -s ${MAVEN_SETTINGS}
                         """
 
@@ -137,7 +134,7 @@ pipeline {
 
             steps {
 
-                echo "========== DOWNLOAD ARTIFACT =========="
+                echo "========== DOWNLOAD =========="
 
                 withCredentials([
                     usernamePassword(
@@ -148,10 +145,9 @@ pipeline {
                 ]) {
 
                     sh """
-                        curl -L \
-                        -u \$NEXUS_USER:\$NEXUS_PASS \
+                        curl -u ${NEXUS_USER}:${NEXUS_PASS} \
                         -o deployment.war \
-                        ${env.NEXUS_URL}/repository/${env.NEXUS_REPOSITORY}/${env.GROUP_ID}/${env.ARTIFACT_ID}/${env.VERSION}/${env.ARTIFACT_ID}-${env.VERSION}.war
+                        ${NEXUS_URL}/repository/${NEXUS_REPOSITORY}/${GROUP_ID}/${ARTIFACT_ID}/${VERSION}/${ARTIFACT_ID}-${VERSION}.war
                     """
 
                 }
@@ -164,7 +160,7 @@ pipeline {
 
             steps {
 
-                echo "========== VERIFY ARTIFACT =========="
+                echo "========== VERIFY =========="
 
                 sh """
                     ls -lh deployment.war
@@ -179,7 +175,7 @@ pipeline {
 
             steps {
 
-                echo "========== DEPLOY TO TOMCAT =========="
+                echo "========== DEPLOY =========="
 
                 withCredentials([
                     usernamePassword(
@@ -190,11 +186,10 @@ pipeline {
                 ]) {
 
                     sh """
-                        curl \
-                        --fail \
-                        -u \$TOMCAT_USER:\$TOMCAT_PASS \
+                        curl -v \
+                        -u ${TOMCAT_USER}:${TOMCAT_PASS} \
                         --upload-file deployment.war \
-                        "${env.TOMCAT_URL}/manager/text/deploy?path=/${env.APP_NAME}&update=true"
+                        "${TOMCAT_URL}/manager/text/deploy?path=/${APP_NAME}&update=true"
                     """
 
                 }
@@ -210,10 +205,11 @@ pipeline {
                 echo "========== HEALTH CHECK =========="
 
                 sh """
+
                     sleep 10
 
-                    curl --fail \
-                    ${env.TOMCAT_URL}/${env.APP_NAME}/
+                    curl -I http://tomcat:8080/${APP_NAME}/
+
                 """
 
             }
@@ -226,20 +222,18 @@ pipeline {
 
         success {
 
-            echo "===================================="
+            echo "======================================"
             echo "BUILD SUCCESSFUL"
-            echo "Version : ${env.VERSION}"
-            echo "Application deployed successfully."
-            echo "===================================="
+            echo "Version : ${VERSION}"
+            echo "======================================"
 
         }
 
         failure {
 
-            echo "===================================="
+            echo "======================================"
             echo "BUILD FAILED"
-            echo "Deployment failed."
-            echo "===================================="
+            echo "======================================"
 
         }
 
