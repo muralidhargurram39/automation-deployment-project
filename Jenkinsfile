@@ -23,10 +23,7 @@ pipeline {
         stage('SonarQube Analysis') {
             steps {
                 withSonarQubeEnv('SonarQube') {
-                    sh '''
-                        mvn sonar:sonar \
-                        -Dsonar.projectKey=automation-deployment
-                    '''
+                    sh 'mvn sonar:sonar'
                 }
             }
         }
@@ -36,20 +33,55 @@ pipeline {
                 archiveArtifacts artifacts: 'target/*.war', fingerprint: true
             }
         }
+
+        stage('Deploy to Nexus') {
+
+            steps {
+
+                configFileProvider([
+                    configFile(
+                        fileId: 'maven-settings',
+                        variable: 'MAVEN_SETTINGS'
+                    )
+                ]) {
+
+                    withCredentials([
+                        usernamePassword(
+                            credentialsId: 'nexus-cred',
+                            usernameVariable: 'NEXUS_USER',
+                            passwordVariable: 'NEXUS_PASS'
+                        )
+                    ]) {
+
+                        sh '''
+                        mvn deploy \
+                          -s $MAVEN_SETTINGS
+                        '''
+
+                    }
+
+                }
+
+            }
+
+        }
+
     }
 
     post {
 
         success {
-            echo 'Build Successful'
+            echo 'Deployment Successful'
         }
 
         failure {
-            echo 'Build Failed'
+            echo 'Deployment Failed'
         }
 
         always {
             cleanWs()
         }
+
     }
+
 }
