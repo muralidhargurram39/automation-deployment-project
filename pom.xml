@@ -60,7 +60,7 @@
         <repository>
             <id>nexus</id>
             <name>Nexus Releases</name>
-         <url>http://localhost:8082/repository/maven-releases1/</url>
+         <url>http://nexus:8081/repository/maven-releases1/</url>
         </repository>
 
     </distributionManagement>
