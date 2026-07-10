@@ -63,6 +63,8 @@ pipeline {
 
         DOCKER_NETWORK = "ci-cd-lab_cicd-network"
 
+        HEALTH_URL = "http://host.docker.internal:9091"
+
     }
 
     stages {

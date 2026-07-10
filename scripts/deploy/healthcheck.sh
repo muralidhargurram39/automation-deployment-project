@@ -19,7 +19,11 @@ do
     fi
 done
 
-URL="http://localhost:${HOST_PORT}"
+if [ -n "$HEALTH_URL" ]; then
+    URL="$HEALTH_URL"
+else
+    URL="http://localhost:${HOST_PORT}"
+fi
 
 echo
 echo "Checking application at:"
