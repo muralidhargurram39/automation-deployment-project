@@ -15,31 +15,41 @@ pipeline {
 
     environment {
 
+        // --------------------------------------------------------------------
         // Application
+        // --------------------------------------------------------------------
         APP_NAME = "automation-deployment"
         GROUP_ID = "com/example"
         ARTIFACT_ID = "automation-deployment-project"
 
+        // --------------------------------------------------------------------
         // Version
+        // --------------------------------------------------------------------
         VERSION = "1.0.${BUILD_NUMBER}"
 
-        // Nexus Maven
+        // --------------------------------------------------------------------
+        // Nexus Maven Repository
+        // --------------------------------------------------------------------
         NEXUS_URL = "http://nexus:8081"
         NEXUS_REPOSITORY = "maven-releases1"
 
+        // --------------------------------------------------------------------
         // Nexus Docker Registry
+        // --------------------------------------------------------------------
         DOCKER_REGISTRY = "nexus:8083"
         DOCKER_REPOSITORY = "automation-deployment"
 
-        IMAGE_VERSION = "${DOCKER_REGISTRY}/${DOCKER_REPOSITORY}:${VERSION}"
-        IMAGE_LATEST  = "${DOCKER_REGISTRY}/${DOCKER_REPOSITORY}:latest"
-
+        // --------------------------------------------------------------------
         // SonarQube
+        // --------------------------------------------------------------------
         SONAR_PROJECT_KEY = "automation-deployment"
         SONAR_PROJECT_NAME = "automation-deployment"
 
+        // --------------------------------------------------------------------
         // Deployment
+        // --------------------------------------------------------------------
         CONTAINER_NAME = "automation-app"
+
         HOST_PORT = "9091"
         CONTAINER_PORT = "8080"
 
@@ -69,10 +79,10 @@ pipeline {
                 withSonarQubeEnv('SonarQube') {
 
                     sh """
-                    mvn clean verify sonar:sonar \
-                        -Drevision=${VERSION} \
-                        -Dsonar.projectKey=${SONAR_PROJECT_KEY} \
-                        -Dsonar.projectName="${SONAR_PROJECT_NAME}"
+                        mvn clean verify sonar:sonar \
+                            -Drevision=${VERSION} \
+                            -Dsonar.projectKey=${SONAR_PROJECT_KEY} \
+                            -Dsonar.projectName=${SONAR_PROJECT_NAME}
                     """
 
                 }
@@ -104,9 +114,9 @@ pipeline {
                 echo "========== PACKAGE =========="
 
                 sh """
-                mvn package \
-                    -DskipTests \
-                    -Drevision=${VERSION}
+                    mvn package \
+                        -DskipTests \
+                        -Drevision=${VERSION}
                 """
 
             }
@@ -117,7 +127,7 @@ pipeline {
 
             steps {
 
-                echo "========== PUBLISH TO NEXUS =========="
+                echo "========== PUBLISH WAR =========="
 
                 withCredentials([
                     usernamePassword(
@@ -134,12 +144,12 @@ pipeline {
                         )
                     ]) {
 
-                        sh '''
-                        mvn deploy \
-                            -DskipTests \
-                            -Drevision='"${VERSION}"' \
-                            -s "$MAVEN_SETTINGS"
-                        '''
+                        sh """
+                            mvn deploy \
+                                -DskipTests \
+                                -Drevision=${VERSION} \
+                                -s ${MAVEN_SETTINGS}
+                        """
 
                     }
 
@@ -164,9 +174,9 @@ pipeline {
                 ]) {
 
                     sh '''
-                    curl -u "$NEXUS_USER:$NEXUS_PASS" \
-                    -o deployment.war \
-                    "$NEXUS_URL/repository/$NEXUS_REPOSITORY/$GROUP_ID/$ARTIFACT_ID/$VERSION/$ARTIFACT_ID-$VERSION.war"
+                        curl -u "$NEXUS_USER:$NEXUS_PASS" \
+                        -o deployment.war \
+                        "$NEXUS_URL/repository/$NEXUS_REPOSITORY/$GROUP_ID/$ARTIFACT_ID/$VERSION/$ARTIFACT_ID-$VERSION.war"
                     '''
 
                 }
@@ -179,11 +189,11 @@ pipeline {
 
             steps {
 
-                echo "========== VERIFY ARTIFACT =========="
+                echo "========== VERIFY WAR =========="
 
                 sh '''
-                ls -lh deployment.war
-                sha1sum deployment.war
+                    ls -lh deployment.war
+                    sha1sum deployment.war
                 '''
 
             }
@@ -196,11 +206,23 @@ pipeline {
 
                 echo "========== BUILD DOCKER IMAGE =========="
 
-                sh '''
-                docker build \
-                    -t ${IMAGE_NAME}:${IMAGE_TAG} \
-                    .
-                '''
+                script {
+
+                    env.IMAGE_VERSION =
+                        "${env.DOCKER_REGISTRY}/${env.DOCKER_REPOSITORY}:${env.VERSION}"
+
+                    env.IMAGE_LATEST =
+                        "${env.DOCKER_REGISTRY}/${env.DOCKER_REPOSITORY}:latest"
+
+                    sh """
+                        docker build \
+                            --build-arg APP_VERSION=${env.VERSION} \
+                            -t ${env.IMAGE_VERSION} \
+                            -t ${env.IMAGE_LATEST} \
+                            .
+                    """
+
+                }
 
             }
 
@@ -213,7 +235,9 @@ pipeline {
                 echo "========== VERIFY DOCKER IMAGE =========="
 
                 sh '''
-                docker images | grep ${IMAGE_NAME}
+                    docker image inspect "$IMAGE_VERSION"
+
+                    docker images | grep automation-deployment
                 '''
 
             }
@@ -224,15 +248,15 @@ pipeline {
 
             steps {
 
-                echo "========== DEPLOY DOCKER CONTAINER =========="
+                echo "========== DEPLOY =========="
 
                 sh '''
-                docker rm -f ${CONTAINER_NAME} || true
+                    docker rm -f "$CONTAINER_NAME" || true
 
-                docker run -d \
-                    --name ${CONTAINER_NAME} \
-                    -p ${CONTAINER_PORT}:8080 \
-                    ${IMAGE_NAME}:${IMAGE_TAG}
+                    docker run -d \
+                        --name "$CONTAINER_NAME" \
+                        -p "$HOST_PORT:8080" \
+                        "$IMAGE_VERSION"
                 '''
 
             }
@@ -246,9 +270,23 @@ pipeline {
                 echo "========== HEALTH CHECK =========="
 
                 sh '''
-                sleep 15
+                    echo "Waiting for application..."
 
-                curl -I http://host.docker.internal:${CONTAINER_PORT}
+                    for i in {1..12}
+                    do
+                        if curl -fs "$HEALTH_URL" >/dev/null
+                        then
+                            echo "Application is healthy."
+                            exit 0
+                        fi
+
+                        echo "Retry $i..."
+                        sleep 5
+                    done
+
+                    echo "Health check failed."
+
+                    exit 1
                 '''
 
             }
@@ -261,19 +299,19 @@ pipeline {
 
         success {
 
-            echo "=========================================="
+            echo "======================================="
             echo "PIPELINE COMPLETED SUCCESSFULLY"
-            echo "Application Version : ${VERSION}"
-            echo "Docker Image : ${IMAGE_NAME}:${IMAGE_TAG}"
-            echo "=========================================="
+            echo "Version : ${VERSION}"
+            echo "Image   : ${IMAGE_VERSION}"
+            echo "======================================="
 
         }
 
         failure {
 
-            echo "=========================================="
+            echo "======================================="
             echo "PIPELINE FAILED"
-            echo "=========================================="
+            echo "======================================="
 
         }
 
