@@ -10,320 +10,487 @@ pipeline {
         timestamps()
         disableConcurrentBuilds()
         buildDiscarder(logRotator(numToKeepStr: '20'))
+        timeout(time: 60, unit: 'MINUTES')
     }
 
     environment {
 
-        // -------------------------------------------------------
+        // ------------------------------------------------------------------
         // Application
-        // -------------------------------------------------------
+        // ------------------------------------------------------------------
+
         APP_NAME = "automation-deployment"
+
         GROUP_ID = "com/example"
+
         ARTIFACT_ID = "automation-deployment-project"
 
-        // -------------------------------------------------------
-        // Version
-        // -------------------------------------------------------
         VERSION = "1.0.${BUILD_NUMBER}"
 
-        // -------------------------------------------------------
-        // Nexus Maven
-        // -------------------------------------------------------
-        NEXUS_URL = "http://nexus:8081"
-        NEXUS_REPOSITORY = "maven-releases1"
-
-        // -------------------------------------------------------
-        // Nexus Docker Registry
-        // -------------------------------------------------------
-        DOCKER_REGISTRY = "nexus:8083"
-        DOCKER_REPOSITORY = "automation-deployment"
-
-        // -------------------------------------------------------
+        // ------------------------------------------------------------------
         // SonarQube
-        // -------------------------------------------------------
+        // ------------------------------------------------------------------
+
         SONAR_PROJECT_KEY = "automation-deployment"
+
         SONAR_PROJECT_NAME = "automation-deployment"
 
-        // -------------------------------------------------------
-        // Docker Deployment
-        // -------------------------------------------------------
+        // ------------------------------------------------------------------
+        // Nexus Maven
+        // ------------------------------------------------------------------
+
+        NEXUS_URL = "http://nexus:8081"
+
+        NEXUS_REPOSITORY = "maven-releases1"
+
+        // ------------------------------------------------------------------
+        // Docker Registry
+        // ------------------------------------------------------------------
+
+        DOCKER_REGISTRY = "localhost:8083"
+
+        DOCKER_REPOSITORY = "docker-hosted"
+
+        IMAGE_NAME = "automation-deployment"
+
+        // ------------------------------------------------------------------
+        // Deployment
+        // ------------------------------------------------------------------
+
         CONTAINER_NAME = "automation-app"
-        DOCKER_NETWORK = "ci-cd-lab_cicd-network"
 
         HOST_PORT = "9091"
-        CONTAINER_PORT = "8080"
+
+        DOCKER_NETWORK = "ci-cd-lab_cicd-network"
+
     }
 
     stages {
+
+    // ==============================================================
+    // Checkout
+    // ==============================================================
 
         stage('Checkout') {
 
             steps {
 
-                echo "========== CHECKOUT =========="
+             echo "======================================"
+             echo "CHECKOUT"
+             echo "======================================"
 
                 checkout scm
 
             }
-
         }
 
-        stage('Build + Unit Test + SonarQube') {
+    // ==============================================================
+    // Compile
+    // ==============================================================
+
+        stage('Compile') {
 
             steps {
 
-                echo "========== BUILD / TEST / SONAR =========="
+                echo "======================================"
+                echo "COMPILE"
+                echo "======================================"
+
+                sh '''
+                    mvn clean compile \
+                    -Drevision=${VERSION}
+                '''
+
+            }
+        }
+
+    // ==============================================================
+    // Unit Test
+    // ==============================================================
+
+        stage('Unit Test') {
+
+            steps {
+
+                echo "======================================"
+                echo "UNIT TEST"
+                echo "======================================"
+
+                sh '''
+                mvn test \
+                -Drevision=${VERSION}
+                '''
+            }
+        }
+
+
+    // ==============================================================
+    // SonarQube Analysis
+    // ==============================================================
+
+        stage('SonarQube Analysis') {
+
+            steps {
+
+                echo "======================================"
+                echo "SONARQUBE"
+                echo "======================================"
 
                 withSonarQubeEnv('SonarQube') {
 
-                    sh """
-                        mvn clean verify sonar:sonar \
-                            -Drevision=${VERSION} \
-                            -Dsonar.projectKey=${SONAR_PROJECT_KEY} \
-                            -Dsonar.projectName=${SONAR_PROJECT_NAME}
-                    """
-
+                    sh '''
+                    mvn sonar:sonar \
+                    -Drevision=${VERSION} \
+                    -Dsonar.projectKey=${SONAR_PROJECT_KEY} \
+                    -Dsonar.projectName="${SONAR_PROJECT_NAME}"
+                    '''
                 }
-
-            }
+            }    
 
         }
+
+    // ==============================================================
+    // Quality Gate
+    // ==============================================================
 
         stage('Quality Gate') {
 
             steps {
 
-                echo "========== QUALITY GATE =========="
+                echo "======================================"
+                echo "QUALITY GATE"
+                echo "======================================"
 
                 timeout(time: 10, unit: 'MINUTES') {
 
                     waitForQualityGate abortPipeline: true
 
                 }
-
             }
-
         }
+
+    // ==============================================================
+    // Package
+    // ==============================================================
 
         stage('Package') {
 
             steps {
 
-                echo "========== PACKAGE =========="
+                echo "======================================"
+                echo "PACKAGE"
+                echo "======================================"
 
-                sh """
-                    mvn package \
-                        -DskipTests \
-                        -Drevision=${VERSION}
-                """
-
+                sh '''
+                mvn package \
+                -DskipTests \
+                -Drevision=${VERSION}
+                '''
             }
-
         }
 
-        stage('Publish Artifact to Nexus') {
+    // ==============================================================
+    // Publish WAR
+    // ==============================================================
+
+        stage('Publish WAR to Nexus') {
 
             steps {
 
-                echo "========== PUBLISH WAR =========="
+                echo "======================================"
+                echo "PUBLISH WAR"
+                echo "======================================"
 
                 withCredentials([
+
                     usernamePassword(
-                        credentialsId: 'nexus-cred',
+
+                     credentialsId: 'nexus-cred',
+
                         usernameVariable: 'NEXUS_USER',
+
                         passwordVariable: 'NEXUS_PASS'
                     )
                 ]) {
 
                     configFileProvider([
+
                         configFile(
+
                             fileId: 'maven-settings',
+
                             variable: 'MAVEN_SETTINGS'
                         )
                     ]) {
 
-                        sh """
-                            mvn deploy \
-                                -DskipTests \
-                                -Drevision=${VERSION} \
-                                -s ${MAVEN_SETTINGS}
-                        """
-
+                        sh '''
+                        mvn deploy \
+                        -DskipTests \
+                        -Drevision=${VERSION} \
+                        -s "$MAVEN_SETTINGS"
+                        '''
                     }
-
                 }
-
             }
-
         }
+    // ==============================================================
+    // Download Artifact
+    // ==============================================================
 
         stage('Download Artifact From Nexus') {
 
             steps {
 
-                echo "========== DOWNLOAD =========="
+                echo "======================================"
+                echo "DOWNLOAD ARTIFACT"
+                echo "======================================"
 
-                withCredentials([
+                    withCredentials([
                     usernamePassword(
-                        credentialsId: 'nexus-cred',
-                        usernameVariable: 'NEXUS_USER',
-                        passwordVariable: 'NEXUS_PASS'
-                    )
+
+                    credentialsId: 'nexus-cred',
+                    usernameVariable: 'NEXUS_USER',
+                    passwordVariable: 'NEXUS_PASS'
+
+                )
+
                 ]) {
 
                     sh '''
-                        curl -u "$NEXUS_USER:$NEXUS_PASS" \
-                        -o deployment.war \
-                        "$NEXUS_URL/repository/$NEXUS_REPOSITORY/$GROUP_ID/$ARTIFACT_ID/$VERSION/$ARTIFACT_ID-$VERSION.war"
+                    curl -u "$NEXUS_USER:$NEXUS_PASS" \
+                     -o deployment.war \
+                    "$NEXUS_URL/repository/$NEXUS_REPOSITORY/$GROUP_ID/$ARTIFACT_ID/$VERSION/$ARTIFACT_ID-$VERSION.war"
+                    
                     '''
-
                 }
-
             }
-
         }
+
+    // ==============================================================
+    // Verify Artifact
+    // ==============================================================
 
         stage('Verify Artifact') {
 
             steps {
 
-                echo "========== VERIFY WAR =========="
+                echo "======================================"
+                echo "VERIFY ARTIFACT"
+                echo "======================================"
 
                 sh '''
-                    ls -lh deployment.war
-                    sha1sum deployment.war
+                ls -lh deployment.war
+                sha1sum deployment.war
                 '''
-
             }
-
         }
+
+    // ==============================================================
+    // Docker Login
+    // ==============================================================
+
+        stage('Docker Login') {
+
+            steps {
+
+                echo "======================================"
+                echo "DOCKER LOGIN"
+                echo "======================================"
+
+                withCredentials([
+
+                    usernamePassword(
+
+                        credentialsId: 'nexus-docker-cred',
+                        usernameVariable: 'DOCKER_USER',
+                        passwordVariable: 'DOCKER_PASS'
+                    )
+                ]) {
+
+                sh '''
+                chmod +x scripts/docker/login.sh
+                ./scripts/docker/login.sh
+                '''
+                }
+            }
+        }
+
+    // ==============================================================
+    // Build Docker Image
+    // ==============================================================
 
         stage('Build Docker Image') {
 
             steps {
 
-                echo "========== BUILD DOCKER IMAGE =========="
+                echo "======================================"
+                echo "BUILD DOCKER IMAGE"
+                echo "======================================"
 
-                script {
-
-                    env.IMAGE_VERSION = "${DOCKER_REGISTRY}/${DOCKER_REPOSITORY}:${VERSION}"
-                    env.IMAGE_LATEST = "${DOCKER_REGISTRY}/${DOCKER_REPOSITORY}:latest"
-
-                    sh """
-                        docker build \
-                            --build-arg APP_VERSION=${VERSION} \
-                            -t ${IMAGE_VERSION} \
-                            -t ${IMAGE_LATEST} \
-                            .
-                    """
-
-                }
-
+                sh '''
+                chmod +x scripts/docker/build.sh
+                ./scripts/docker/build.sh
+                '''
             }
-
         }
 
-        stage('Verify Docker Image') {
+
+    // ==============================================================
+    // Push Docker Image
+    // ==============================================================
+
+        stage('Push Docker Images') {
 
             steps {
 
-                echo "========== VERIFY DOCKER IMAGE =========="
+                echo "======================================"
+                echo "PUSH DOCKER IMAGE"
+                echo "======================================"
 
                 sh '''
-                    docker image inspect "$IMAGE_VERSION"
-                    docker images | grep automation-deployment
+                chmod +x scripts/docker/push.sh
+                ./scripts/docker/push.sh
                 '''
-
             }
-
         }
 
-        stage('Deploy Docker Container') {
+    // ==============================================================
+    // Pull Docker Image
+    // ==============================================================
+
+        stage('Pull Docker Image') {
 
             steps {
 
-                echo "========== DEPLOY =========="
+                echo "======================================"
+                echo "PULL DOCKER IMAGE"
+                echo "======================================"
 
                 sh '''
-                    docker rm -f "$CONTAINER_NAME" || true
-
-                    docker run -d \
-                        --name "$CONTAINER_NAME" \
-                        --network "$DOCKER_NETWORK" \
-                        -p "$HOST_PORT:8080" \
-                        "$IMAGE_VERSION"
+                chmod +x scripts/docker/pull.sh
+                ./scripts/docker/pull.sh
                 '''
-
             }
-
         }
 
-        stage('Container Health Check') {
+    // ==============================================================
+    // Deploy
+    // ==============================================================
+
+        stage('Deploy') {
 
             steps {
 
-                echo "========== HEALTH CHECK =========="
+                echo "======================================"
+                echo "DEPLOY APPLICATION"
+                echo "======================================"
 
                 sh '''
-                    echo "Waiting for application..."
-
-                    i=1
-
-                    while [ $i -le 12 ]
-                    do
-                        if curl -fs http://automation-app:8080/ >/dev/null
-                        then
-                            echo "Application is healthy."
-                            exit 0
-                        fi
-
-                        echo "Retry $i..."
-                        i=$((i+1))
-
-                        sleep 5
-                    done
-
-                    echo "Health check failed."
-
-                    docker ps
-
-                    docker logs automation-app || true
-
-                    exit 1
+                chmod +x scripts/deploy/deploy.sh
+                ./scripts/deploy/deploy.sh
                 '''
-
             }
-
         }
 
-    }
+    // ==============================================================
+    // Health Check
+    // ==============================================================
+
+        stage('Health Check') {
+
+            steps {
+
+                echo "======================================"
+                echo "APPLICATION HEALTH CHECK"
+                echo "======================================"
+
+                sh '''
+                chmod +x scripts/deploy/healthcheck.sh
+                ./scripts/deploy/healthcheck.sh
+                '''
+            }
+        }
+    } // End of stages
+
+    // ==============================================================
+    // Post Actions
+    // ==============================================================
 
     post {
 
+        always {
+
+            echo "======================================"
+            echo "PIPELINE FINISHED"
+            echo "======================================"
+
+            sh '''
+            echo
+            echo "Build Number     : ${BUILD_NUMBER}"
+            echo "Application      : ${APP_NAME}"
+            echo "Version          : ${VERSION}"
+            echo "Docker Registry  : ${DOCKER_REGISTRY}"
+            echo "Docker Repository: ${DOCKER_REPOSITORY}"
+            echo "Image Name       : ${IMAGE_NAME}"
+            '''
+
+            cleanWs(
+                deleteDirs: true,
+                disableDeferredWipeout: true
+            )
+
+        }
+
         success {
 
-            echo "======================================="
-            echo "PIPELINE COMPLETED SUCCESSFULLY"
-            echo "Application Version : ${VERSION}"
-            echo "Docker Image : ${IMAGE_VERSION}"
-            echo "======================================="
+            echo ""
+            echo "======================================"
+            echo "BUILD SUCCESSFUL"
+            echo "======================================"
+
+            echo "Application : ${APP_NAME}"
+
+            echo "Version     : ${VERSION}"
+
+            echo "Docker Image: ${DOCKER_REGISTRY}/${DOCKER_REPOSITORY}/${IMAGE_NAME}:${VERSION}"
+
+            echo "Deployment  : SUCCESS"
+
+            echo "======================================"
+
+        }
+
+        unstable {
+
+            echo ""
+            echo "======================================"
+            echo "BUILD UNSTABLE"
+            echo "======================================"
 
         }
 
         failure {
 
-            echo "======================================="
-            echo "PIPELINE FAILED"
-            echo "======================================="
+            echo ""
+            echo "======================================"
+            echo "BUILD FAILED"
+            echo "======================================"
+
+            sh '''
+            echo
+            echo "========== Docker Containers =========="
+            docker ps -a || true
+
+            echo
+            echo "========== Docker Images =============="
+            docker images || true
+
+            echo
+            echo "========== Application Logs ==========="
+
+            docker logs ${CONTAINER_NAME} --tail 100 2>/dev/null || true
+            '''
 
         }
-
-        always {
-
-            cleanWs()
-
-        }
-
     }
-
 }
