@@ -1,0 +1,39 @@
+{
+  "SchemaVersion": 2,
+  "Trivy": {
+    "Version": "0.71.2"
+  },
+  "ReportID": "019f4b25-fcee-7097-b029-e02a2994ec6c",
+  "CreatedAt": "2026-07-10T08:30:08.622039811Z",
+  "ArtifactID": "sha256:e5ceffba6388f7f704434b695f7a84a8f6d831690bff2cef07c365cb26e8d12f",
+  "ArtifactName": ".",
+  "ArtifactType": "repository",
+  "Metadata": {
+    "RepoURL": "git@github.com:muralidhargurram39/automation-deployment-project.git",
+    "Branch": "main",
+    "Commit": "3c23f5dbc986f06ac603f3174b5162ba6a8d2fc8",
+    "CommitMsg": "Fix health check for Jenkins container",
+    "Author": "muralidhargurram39 \u003cmuralidharaws39@gmail.com\u003e",
+    "Committer": "muralidhargurram39 \u003cmuralidharaws39@gmail.com\u003e"
+  },
+  "Results": [
+    {
+      "Target": "pom.xml",
+      "Class": "lang-pkgs",
+      "Type": "pom",
+      "Packages": [
+        {
+          "ID": "com.example:automation-deployment-project:1.0.0::f964461a",
+          "Name": "com.example:automation-deployment-project",
+          "Identifier": {
+            "PURL": "pkg:maven/com.example/automation-deployment-project@1.0.0",
+            "UID": "6f7e6a91e624a16d"
+          },
+          "Version": "1.0.0",
+          "Relationship": "root",
+          "AnalyzedBy": "pom"
+        }
+      ]
+    }
+  ]
+}

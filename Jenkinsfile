@@ -170,6 +170,16 @@ pipeline {
                 }
             }
         }
+        stage('Filesystem Security Scan') {
+
+            steps {
+
+                sh '''
+                chmod +x scripts/security/filesystem_scan.sh
+                ./scripts/security/filesystem_scan.sh
+                '''
+            }
+        }
 
     // ==============================================================
     // Package
@@ -335,6 +345,32 @@ pipeline {
                 '''
             }
         }
+        stage('Container Image Security Scan') {
+
+            steps {
+
+                sh '''
+                chmod +x scripts/security/image_scan.sh
+                ./scripts/security/image_scan.sh
+                '''
+            }
+        }
+        stage('Security Gate') {
+
+            environment {
+
+                FAIL_ON_CRITICAL = "true"
+                FAIL_ON_HIGH = "false"
+            }
+
+            steps {
+
+                sh '''
+                chmod +x scripts/security/security_gate.sh
+                ./scripts/security/security_gate.sh
+                '''
+            }
+        }
 
 
     // ==============================================================
@@ -435,6 +471,30 @@ pipeline {
             echo "Docker Repository: ${DOCKER_REPOSITORY}"
             echo "Image Name       : ${IMAGE_NAME}"
             '''
+            // Archive all security reports
+            archiveArtifacts(
+                artifacts: 'reports/**/*',
+                fingerprint: true,
+                allowEmptyArchive: true
+            )
+            // Publish HTML reports (requires HTML Publisher plugin)
+            publishHTML(target: [
+                reportName: 'Filesystem Security Report',
+                reportDir: 'reports/filesystem',
+                reportFiles: 'trivy.html',
+                keepAll: true,
+                alwaysLinkToLastBuild: true,
+                allowMissing: true
+            ])
+
+            publishHTML(target: [
+                reportName: 'Container Image Security Report',
+                reportDir: 'reports/image',
+                reportFiles: 'trivy.html',
+                keepAll: true,
+                alwaysLinkToLastBuild: true,
+                allowMissing: true
+            ])
 
             cleanWs(
                 deleteDirs: true,
