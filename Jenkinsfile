@@ -10,50 +10,48 @@ pipeline {
         timestamps()
         disableConcurrentBuilds()
         buildDiscarder(logRotator(numToKeepStr: '20'))
-        ansiColor('xterm')
     }
 
     environment {
 
-        // --------------------------------------------------------------------
+        // -------------------------------------------------------
         // Application
-        // --------------------------------------------------------------------
+        // -------------------------------------------------------
         APP_NAME = "automation-deployment"
         GROUP_ID = "com/example"
         ARTIFACT_ID = "automation-deployment-project"
 
-        // --------------------------------------------------------------------
+        // -------------------------------------------------------
         // Version
-        // --------------------------------------------------------------------
+        // -------------------------------------------------------
         VERSION = "1.0.${BUILD_NUMBER}"
 
-        // --------------------------------------------------------------------
-        // Nexus Maven Repository
-        // --------------------------------------------------------------------
+        // -------------------------------------------------------
+        // Nexus Maven
+        // -------------------------------------------------------
         NEXUS_URL = "http://nexus:8081"
         NEXUS_REPOSITORY = "maven-releases1"
 
-        // --------------------------------------------------------------------
+        // -------------------------------------------------------
         // Nexus Docker Registry
-        // --------------------------------------------------------------------
+        // -------------------------------------------------------
         DOCKER_REGISTRY = "nexus:8083"
         DOCKER_REPOSITORY = "automation-deployment"
 
-        // --------------------------------------------------------------------
+        // -------------------------------------------------------
         // SonarQube
-        // --------------------------------------------------------------------
+        // -------------------------------------------------------
         SONAR_PROJECT_KEY = "automation-deployment"
         SONAR_PROJECT_NAME = "automation-deployment"
 
-        // --------------------------------------------------------------------
-        // Deployment
-        // --------------------------------------------------------------------
+        // -------------------------------------------------------
+        // Docker Deployment
+        // -------------------------------------------------------
         CONTAINER_NAME = "automation-app"
+        DOCKER_NETWORK = "ci-cd-lab_cicd-network"
 
         HOST_PORT = "9091"
         CONTAINER_PORT = "8080"
-
-        HEALTH_URL = "http://host.docker.internal:9091"
     }
 
     stages {
@@ -208,17 +206,14 @@ pipeline {
 
                 script {
 
-                    env.IMAGE_VERSION =
-                        "${env.DOCKER_REGISTRY}/${env.DOCKER_REPOSITORY}:${env.VERSION}"
-
-                    env.IMAGE_LATEST =
-                        "${env.DOCKER_REGISTRY}/${env.DOCKER_REPOSITORY}:latest"
+                    env.IMAGE_VERSION = "${DOCKER_REGISTRY}/${DOCKER_REPOSITORY}:${VERSION}"
+                    env.IMAGE_LATEST = "${DOCKER_REGISTRY}/${DOCKER_REPOSITORY}:latest"
 
                     sh """
                         docker build \
-                            --build-arg APP_VERSION=${env.VERSION} \
-                            -t ${env.IMAGE_VERSION} \
-                            -t ${env.IMAGE_LATEST} \
+                            --build-arg APP_VERSION=${VERSION} \
+                            -t ${IMAGE_VERSION} \
+                            -t ${IMAGE_LATEST} \
                             .
                     """
 
@@ -236,7 +231,6 @@ pipeline {
 
                 sh '''
                     docker image inspect "$IMAGE_VERSION"
-
                     docker images | grep automation-deployment
                 '''
 
@@ -255,6 +249,7 @@ pipeline {
 
                     docker run -d \
                         --name "$CONTAINER_NAME" \
+                        --network "$DOCKER_NETWORK" \
                         -p "$HOST_PORT:8080" \
                         "$IMAGE_VERSION"
                 '''
@@ -272,19 +267,27 @@ pipeline {
                 sh '''
                     echo "Waiting for application..."
 
-                    for i in {1..12}
+                    i=1
+
+                    while [ $i -le 12 ]
                     do
-                        if curl -fs "$HEALTH_URL" >/dev/null
+                        if curl -fs http://automation-app:8080/ >/dev/null
                         then
                             echo "Application is healthy."
                             exit 0
                         fi
 
                         echo "Retry $i..."
+                        i=$((i+1))
+
                         sleep 5
                     done
 
                     echo "Health check failed."
+
+                    docker ps
+
+                    docker logs automation-app || true
 
                     exit 1
                 '''
@@ -301,8 +304,8 @@ pipeline {
 
             echo "======================================="
             echo "PIPELINE COMPLETED SUCCESSFULLY"
-            echo "Version : ${VERSION}"
-            echo "Image   : ${IMAGE_VERSION}"
+            echo "Application Version : ${VERSION}"
+            echo "Docker Image : ${IMAGE_VERSION}"
             echo "======================================="
 
         }
