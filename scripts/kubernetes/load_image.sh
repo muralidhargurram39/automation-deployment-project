@@ -1,38 +1,102 @@
 #!/bin/bash
 
-set -e
+set -euo pipefail
 
 echo "========================================"
 echo "Load Docker Image into Kind"
 echo "========================================"
 
-# Default values (can be overridden by environment variables)
-DOCKER_REGISTRY=${DOCKER_REGISTRY:-nexus:8083}
-DOCKER_REPOSITORY=${DOCKER_REPOSITORY:-docker-hosted}
-IMAGE_NAME=${IMAGE_NAME:-automation-deployment}
-VERSION=${VERSION:-latest}
-K8S_CLUSTER=${K8S_CLUSTER:-automation-deployment-cluster}
+#########################################################
+# Validate Environment Variables
+#########################################################
+
+required_vars=(
+    DOCKER_REGISTRY
+    DOCKER_REPOSITORY
+    IMAGE_NAME
+    VERSION
+    KIND_CLUSTER_NAME
+)
+
+for var in "${required_vars[@]}"
+do
+    if [ -z "${!var:-}" ]; then
+        echo "ERROR: Environment variable '$var' is not set."
+        exit 1
+    fi
+done
+
+#########################################################
+# Build Image Name
+#########################################################
 
 IMAGE="${DOCKER_REGISTRY}/${DOCKER_REPOSITORY}/${IMAGE_NAME}:${VERSION}"
 
 echo
-echo "Cluster : ${K8S_CLUSTER}"
+echo "Cluster : ${KIND_CLUSTER_NAME}"
 echo "Image   : ${IMAGE}"
+
+#########################################################
+# Verify Kind Cluster
+#########################################################
+
 echo
+echo "Checking Kind cluster..."
 
-kind load docker-image "$IMAGE" --name "$K8S_CLUSTER"
-
-echo "Verifying image inside Kind..."
-
-docker exec "${K8S_CLUSTER}-control-plane" \
-ctr -n k8s.io images ls | grep "$IMAGE"
-
-echo "Image verified."
-
-if ! kind get clusters | grep -qx "${K8S_CLUSTER}"; then
-    echo "ERROR: Kind cluster '${K8S_CLUSTER}' does not exist."
+if ! kind get clusters | grep -qx "${KIND_CLUSTER_NAME}"
+then
+    echo
+    echo "ERROR: Kind cluster '${KIND_CLUSTER_NAME}' does not exist."
     exit 1
 fi
 
+echo "Kind cluster found."
+
+#########################################################
+# Verify Docker Image
+#########################################################
+
 echo
+echo "Checking Docker image..."
+
+if ! docker image inspect "${IMAGE}" >/dev/null 2>&1
+then
+    echo
+    echo "ERROR: Docker image not found:"
+    echo "       ${IMAGE}"
+    exit 1
+fi
+
+echo "Docker image found."
+
+#########################################################
+# Load Image into Kind
+#########################################################
+
+echo
+echo "Loading image into Kind..."
+
+kind load docker-image \
+    "${IMAGE}" \
+    --name "${KIND_CLUSTER_NAME}"
+
+#########################################################
+# Verify Image Inside Kind
+#########################################################
+
+echo
+echo "Verifying image inside Kind..."
+
+docker exec "${KIND_CLUSTER_NAME}-control-plane" \
+    ctr -n k8s.io images ls | grep -F "${IMAGE}" >/dev/null
+
+echo "Image verified inside Kind."
+
+#########################################################
+# Completed
+#########################################################
+
+echo
+echo "========================================"
 echo "Image loaded successfully."
+echo "========================================"
