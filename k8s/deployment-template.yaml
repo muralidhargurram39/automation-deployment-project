@@ -1,0 +1,85 @@
+apiVersion: apps/v1
+kind: Deployment
+
+metadata:
+  name: automation-deployment
+  namespace: automation-deployment
+
+  labels:
+    app: automation-deployment
+
+spec:
+  replicas: 2
+
+  revisionHistoryLimit: 5
+
+  strategy:
+    type: RollingUpdate
+
+    rollingUpdate:
+      maxUnavailable: 1
+      maxSurge: 1
+
+  selector:
+    matchLabels:
+      app: automation-deployment
+
+  template:
+
+    metadata:
+      labels:
+        app: automation-deployment
+
+    spec:
+
+      terminationGracePeriodSeconds: 30
+
+      containers:
+
+        - name: automation-deployment
+
+          image: IMAGE_PLACEHOLDER
+
+          imagePullPolicy: IfNotPresent
+
+          ports:
+            - containerPort: 8080
+
+          envFrom:
+            - configMapRef:
+                name: automation-config
+
+            - secretRef:
+                name: automation-secret
+
+          resources:
+
+            requests:
+              cpu: "250m"
+              memory: "512Mi"
+
+            limits:
+              cpu: "500m"
+              memory: "1Gi"
+
+          readinessProbe:
+
+            httpGet:
+              path: /
+              port: 8080
+
+            initialDelaySeconds: 20
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+
+          livenessProbe:
+
+            httpGet:
+              path: /
+              port: 8080
+
+            initialDelaySeconds: 40
+            periodSeconds: 20
+            timeoutSeconds: 5
+            failureThreshold: 3

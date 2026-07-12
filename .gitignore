@@ -36,3 +36,5 @@ dependency-reduced-pom.xml
 # Temporary
 *.tmp
 *.swp
+# Generated Kubernetes Manifest
+k8s/deployment.yaml

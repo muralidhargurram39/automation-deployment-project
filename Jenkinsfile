@@ -65,6 +65,18 @@ pipeline {
 
         HEALTH_URL = "http://host.docker.internal:9091"
 
+        // ------------------------------------------------------------------
+        // Kubernetes
+        // ------------------------------------------------------------------
+
+        K8S_CLUSTER = "automation-deployment-cluster"
+
+        K8S_NAMESPACE = "automation-deployment"
+
+        DEPLOYMENT_NAME = "automation-deployment"
+
+        SERVICE_NAME = "automation-service"
+
     }
 
     stages {
@@ -391,63 +403,36 @@ pipeline {
                 '''
             }
         }
-
-    // ==============================================================
-    // Pull Docker Image
-    // ==============================================================
-
-        stage('Pull Docker Image') {
+        stage('Deploy to Kubernetes') {
 
             steps {
 
                 echo "======================================"
-                echo "PULL DOCKER IMAGE"
+                echo "DEPLOY TO KUBERNETES"
                 echo "======================================"
 
-                sh '''
-                chmod +x scripts/docker/pull.sh
-                ./scripts/docker/pull.sh
-                '''
+                withCredentials([
+
+                    usernamePassword(
+
+                        credentialsId: 'nexus-docker-cred',
+
+                        usernameVariable: 'NEXUS_USERNAME',
+
+                        passwordVariable: 'NEXUS_PASSWORD'
+                    )
+                ]) {
+
+                    sh '''
+
+                    chmod +x scripts/kubernetes/*.sh
+                    chmod +x scripts/pipeline/*.sh
+                    ./scripts/pipeline/deploy_kubernetes.sh
+
+                    '''
+                }
             }
-        }
-
-    // ==============================================================
-    // Deploy
-    // ==============================================================
-
-        stage('Deploy') {
-
-            steps {
-
-                echo "======================================"
-                echo "DEPLOY APPLICATION"
-                echo "======================================"
-
-                sh '''
-                chmod +x scripts/deploy/deploy.sh
-                ./scripts/deploy/deploy.sh
-                '''
-            }
-        }
-
-    // ==============================================================
-    // Health Check
-    // ==============================================================
-
-        stage('Health Check') {
-
-            steps {
-
-                echo "======================================"
-                echo "APPLICATION HEALTH CHECK"
-                echo "======================================"
-
-                sh '''
-                chmod +x scripts/deploy/healthcheck.sh
-                ./scripts/deploy/healthcheck.sh
-                '''
-            }
-        }
+        }    
     } // End of stages
 
     // ==============================================================
@@ -464,20 +449,35 @@ pipeline {
 
             sh '''
             echo
-            echo "Build Number     : ${BUILD_NUMBER}"
-            echo "Application      : ${APP_NAME}"
-            echo "Version          : ${VERSION}"
-            echo "Docker Registry  : ${DOCKER_REGISTRY}"
-            echo "Docker Repository: ${DOCKER_REPOSITORY}"
-            echo "Image Name       : ${IMAGE_NAME}"
+            echo "Build Number      : ${BUILD_NUMBER}"
+            echo "Application       : ${APP_NAME}"
+            echo "Version           : ${VERSION}"
+            echo "Docker Registry   : ${DOCKER_REGISTRY}"
+            echo "Docker Repository : ${DOCKER_REPOSITORY}"
+            echo "Image Name        : ${IMAGE_NAME}"
+            echo "K8S Namespace     : ${K8S_NAMESPACE}"
+            echo "Deployment        : ${DEPLOYMENT_NAME}"
+            echo "Service           : ${SERVICE_NAME}"
             '''
-            // Archive all security reports
+
+            //
+            // Archive Reports
+            //
             archiveArtifacts(
                 artifacts: 'reports/**/*',
                 fingerprint: true,
                 allowEmptyArchive: true
             )
-            // Publish HTML reports (requires HTML Publisher plugin)
+
+            archiveArtifacts(
+                artifacts: 'diagnostics/**/*',
+                fingerprint: true,
+                allowEmptyArchive: true
+            )
+
+            //
+            // Publish HTML Reports
+            //
             publishHTML(target: [
                 reportName: 'Filesystem Security Report',
                 reportDir: 'reports/filesystem',
@@ -496,11 +496,13 @@ pipeline {
                 allowMissing: true
             ])
 
+            //
+            // Cleanup Workspace
+            //
             cleanWs(
                 deleteDirs: true,
                 disableDeferredWipeout: true
             )
-
         }
 
         success {
@@ -511,15 +513,39 @@ pipeline {
             echo "======================================"
 
             echo "Application : ${APP_NAME}"
-
             echo "Version     : ${VERSION}"
 
-            echo "Docker Image: ${DOCKER_REGISTRY}/${DOCKER_REPOSITORY}/${IMAGE_NAME}:${VERSION}"
+            echo ""
+            echo "Docker Image"
+            echo "${DOCKER_REGISTRY}/${DOCKER_REPOSITORY}/${IMAGE_NAME}:${VERSION}"
 
-            echo "Deployment  : SUCCESS"
+            echo ""
+            echo "Deployment Platform : Kubernetes"
+            echo "Namespace           : ${K8S_NAMESPACE}"
+            echo "Deployment          : ${DEPLOYMENT_NAME}"
+            echo "Service             : ${SERVICE_NAME}"
+
+            sh '''
+            echo
+            echo "========== Deployment =========="
+            kubectl get deployment ${DEPLOYMENT_NAME} \
+            -n ${K8S_NAMESPACE}
+
+            echo
+            echo "========== Pods =========="
+            kubectl get pods \
+            -n ${K8S_NAMESPACE}
+
+            echo
+            echo "========== Service =========="
+            kubectl get svc \
+            -n ${K8S_NAMESPACE}
+            '''
+
+            echo ""
+            echo "Pipeline completed successfully."
 
             echo "======================================"
-
         }
 
         unstable {
@@ -540,19 +566,24 @@ pipeline {
 
             sh '''
             echo
-            echo "========== Docker Containers =========="
-            docker ps -a || true
+            echo "Collecting Kubernetes diagnostics..."
 
-            echo
-            echo "========== Docker Images =============="
-            docker images || true
+            chmod +x scripts/kubernetes/*.sh
 
-            echo
-            echo "========== Application Logs ==========="
-
-            docker logs ${CONTAINER_NAME} --tail 100 2>/dev/null || true
+            ./scripts/kubernetes/collect_diagnostics.sh || true
+            
             '''
 
+            archiveArtifacts(
+                artifacts: 'diagnostics/**/*',
+                fingerprint: true,
+                allowEmptyArchive: true
+            )
+
+            echo ""
+            echo "Diagnostics collection completed."
+
+            echo "======================================"
         }
     }
 }

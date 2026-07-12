@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: Namespace
+
+metadata:
+  name: automation-deployment
+  labels:
+    app: automation-deployment
+    environment: development
