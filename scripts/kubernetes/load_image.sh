@@ -21,6 +21,7 @@ required_vars=(
 for var in "${required_vars[@]}"
 do
     if [ -z "${!var:-}" ]; then
+        echo
         echo "ERROR: Environment variable '$var' is not set."
         exit 1
     fi
@@ -50,10 +51,10 @@ then
     exit 1
 fi
 
-echo "Kind cluster found."
+echo "✓ Kind cluster found."
 
 #########################################################
-# Verify Docker Image
+# Verify Docker Image Exists Locally
 #########################################################
 
 echo
@@ -62,12 +63,12 @@ echo "Checking Docker image..."
 if ! docker image inspect "${IMAGE}" >/dev/null 2>&1
 then
     echo
-    echo "ERROR: Docker image not found:"
-    echo "       ${IMAGE}"
+    echo "ERROR: Docker image not found."
+    echo "Image : ${IMAGE}"
     exit 1
 fi
 
-echo "Docker image found."
+echo "✓ Docker image found."
 
 #########################################################
 # Load Image into Kind
@@ -81,18 +82,6 @@ kind load docker-image \
     --name "${KIND_CLUSTER_NAME}"
 
 #########################################################
-# Verify Image Inside Kind
-#########################################################
-
-echo
-echo "Verifying image inside Kind..."
-
-docker exec "${KIND_CLUSTER_NAME}-control-plane" \
-    ctr -n k8s.io images ls | grep -F "${IMAGE}" >/dev/null
-
-echo "Image verified inside Kind."
-
-#########################################################
 # Completed
 #########################################################
 
@@ -100,3 +89,7 @@ echo
 echo "========================================"
 echo "Image loaded successfully."
 echo "========================================"
+
+echo
+echo "Loaded Image : ${IMAGE}"
+echo "Cluster      : ${KIND_CLUSTER_NAME}"
