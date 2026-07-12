@@ -599,9 +599,15 @@ pipeline {
         //
         // Cleanup Workspace
         //
-        cleanWs(
-            deleteDirs: true,
-            disableDeferredWipeout: true
-        )
+        cleanup {
+            echo ""
+            echo "======================================"
+            echo "CLEANUP WORKSPACE"
+            echo "======================================"
+            cleanWs(
+                deleteDirs: true,
+                disableDeferredWipeout: true
+            )
+        }
     }
 }
