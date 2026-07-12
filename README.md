@@ -10,7 +10,7 @@ The project follows enterprise DevOps best practices including Pipeline as Code,
 
 ## Architecture
 
-![Architecture](docs/images/architecture-overview.png)
+![Architecture](images/architecture-overview.png)
 
 3. Tech Stack
 
@@ -31,7 +31,7 @@ The project follows enterprise DevOps best practices including Pipeline as Code,
 
 ## Pipeline
 
-![Pipeline](docs/images/cicd-pipeline-flow.png)
+![Pipeline](images/cicd-pipeline-flow.png)
 
 ## Project Status
 
@@ -69,7 +69,7 @@ The project follows enterprise DevOps best practices including Pipeline as Code,
 
 ## Repository Structure
 
-![Repository](docs/images/repository-structure.png)
+![Repository](images/repository-structure.png)
 
 ## Quick Start
 
