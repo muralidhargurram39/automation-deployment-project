@@ -47,7 +47,7 @@ pipeline {
         // Docker Registry
         // ------------------------------------------------------------------
 
-        DOCKER_REGISTRY = "localhost:8083"
+        DOCKER_REGISTRY = "nexus:8083"
 
         DOCKER_REPOSITORY = "docker-hosted"
 

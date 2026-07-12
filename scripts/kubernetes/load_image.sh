@@ -7,7 +7,7 @@ echo "Load Docker Image into Kind"
 echo "========================================"
 
 # Default values (can be overridden by environment variables)
-DOCKER_REGISTRY=${DOCKER_REGISTRY:-localhost:8083}
+DOCKER_REGISTRY=${DOCKER_REGISTRY:-nexus:8083}
 DOCKER_REPOSITORY=${DOCKER_REPOSITORY:-docker-hosted}
 IMAGE_NAME=${IMAGE_NAME:-automation-deployment}
 VERSION=${VERSION:-latest}

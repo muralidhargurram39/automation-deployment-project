@@ -11,7 +11,7 @@ if [ -z "$DOCKER_USER" ] || [ -z "$DOCKER_PASS" ]; then
     exit 1
 fi
 
-echo "$DOCKER_PASS" | docker login localhost:8083 \
+echo "$DOCKER_PASS" | docker login nexus:8083 \
     --username "$DOCKER_USER" \
     --password-stdin
 
