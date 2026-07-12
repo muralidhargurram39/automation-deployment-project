@@ -46,11 +46,11 @@ pipeline {
         // ------------------------------------------------------------------
         // Docker Registry
         // ------------------------------------------------------------------
-	
-	// Docker CLI (host daemon)
-	DOCKER_REGISTRY = "localhost:8083"
 
-	// Registry API (inside Jenkins container)
+        // Docker CLI (host daemon)
+        DOCKER_REGISTRY = "localhost:8083"
+
+        // Registry API (inside Jenkins container)
 
         REGISTRY_API = "nexus:8083"
 
@@ -81,6 +81,22 @@ pipeline {
         DEPLOYMENT_NAME = "automation-deployment"
 
         SERVICE_NAME = "automation-service"
+
+        // ------------------------------------------------------------------
+        // Helm
+        // ------------------------------------------------------------------
+
+        RELEASE_NAME = "automation-deployment"
+
+        CHART_DIR = "helm/automation-deployment"
+
+        VALUES_FILE = "helm/automation-deployment/values.yaml"
+
+        RUNTIME_VALUES = "target/runtime-values.yaml"
+
+        HELM_TIMEOUT = "5m"
+
+        ROLLOUT_TIMEOUT = "300s"
 
     }
 
@@ -164,7 +180,7 @@ pipeline {
                     -Dsonar.projectName="${SONAR_PROJECT_NAME}"
                     '''
                 }
-            }    
+            }
 
         }
 
@@ -289,7 +305,7 @@ pipeline {
                     curl -u "$NEXUS_USER:$NEXUS_PASS" \
                      -o deployment.war \
                     "$NEXUS_URL/repository/$NEXUS_REPOSITORY/$GROUP_ID/$ARTIFACT_ID/$VERSION/$ARTIFACT_ID-$VERSION.war"
-                    
+
                     '''
                 }
             }
@@ -426,36 +442,82 @@ pipeline {
                 '''
             }
         }
-        stage('Deploy to Kubernetes') {
+        
+        stage('Load Image into Kind') {
 
             steps {
 
                 echo "======================================"
-                echo "DEPLOY TO KUBERNETES"
+                echo "LOAD IMAGE INTO KIND"
                 echo "======================================"
 
-                withCredentials([
-
-                    usernamePassword(
-
-                        credentialsId: 'nexus-docker-cred',
-
-                        usernameVariable: 'NEXUS_USERNAME',
-
-                        passwordVariable: 'NEXUS_PASSWORD'
-                    )
-                ]) {
-
-                    sh '''
-
-                    chmod +x scripts/kubernetes/*.sh
-                    chmod +x scripts/pipeline/*.sh
-                    ./scripts/pipeline/deploy_kubernetes.sh
-
-                    '''
-                }
+                sh '''
+                chmod +x scripts/kubernetes/load_image.sh
+                ./scripts/kubernetes/load_image.sh
+                '''
             }
-        }    
+        }
+
+        stage('Generate Helm Runtime Values') {
+
+            steps {
+
+                echo "======================================"
+                echo "GENERATE HELM VALUES"
+                echo "======================================"
+
+                sh '''
+                chmod +x scripts/helm/generate_values.sh
+                ./scripts/helm/generate_values.sh
+                '''
+            }
+        }
+
+        stage('Validate Helm Chart') {
+
+            steps {
+
+                echo "======================================"
+                echo "VALIDATE HELM CHART"
+                echo "======================================"
+
+                sh '''
+                chmod +x scripts/helm/validate_chart.sh
+                ./scripts/helm/validate_chart.sh
+                '''
+            }   
+        }
+
+        stage('Deploy with Helm') {
+
+            steps {
+
+                echo "======================================"
+                echo "DEPLOY WITH HELM"
+                echo "======================================"
+
+                sh '''
+                chmod +x scripts/helm/deploy.sh
+                ./scripts/helm/deploy.sh
+                '''
+            }
+        }
+
+        stage('Verify Helm Release') {
+
+            steps {
+
+                echo "======================================"
+                echo "VERIFY HELM RELEASE"
+                echo "======================================"
+
+                sh '''
+                chmod +x scripts/helm/verify_release.sh
+                ./scripts/helm/verify_release.sh
+                '''
+            }
+        }
+
     } // End of stages
 
     // ==============================================================
@@ -542,25 +604,12 @@ pipeline {
             echo "Service             : ${SERVICE_NAME}"
 
             sh '''
-            echo
-            echo "========== Deployment =========="
-            kubectl get deployment ${DEPLOYMENT_NAME} \
-            -n ${K8S_NAMESPACE}
+                chmod +x scripts/helm/verify_release.sh
+                ./scripts/helm/verify_release.sh
+                '''
 
-            echo
-            echo "========== Pods =========="
-            kubectl get pods \
-            -n ${K8S_NAMESPACE}
-
-            echo
-            echo "========== Service =========="
-            kubectl get svc \
-            -n ${K8S_NAMESPACE}
-            '''
-
-            echo ""
+            echo "======================================"
             echo "Pipeline completed successfully."
-
             echo "======================================"
         }
 
@@ -587,7 +636,7 @@ pipeline {
             chmod +x scripts/kubernetes/*.sh
 
             ./scripts/kubernetes/collect_diagnostics.sh || true
-            
+
             '''
 
             archiveArtifacts(

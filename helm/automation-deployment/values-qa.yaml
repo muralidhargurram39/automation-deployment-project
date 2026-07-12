@@ -1,0 +1,5 @@
+deployment:
+  replicaCount: 2
+
+config:
+  APP_ENV: qa

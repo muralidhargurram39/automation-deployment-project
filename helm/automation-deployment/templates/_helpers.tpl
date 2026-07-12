@@ -1,62 +1,114 @@
 {{/*
-Expand the name of the chart.
+===============================================================================
+Chart Name
+===============================================================================
 */}}
+
 {{- define "automation-deployment.name" -}}
-{{- default .Chart.Name .Values.nameOverride | trunc 63 | trimSuffix "-" }}
+{{ .Chart.Name }}
 {{- end }}
 
 {{/*
-Create a default fully qualified app name.
-We truncate at 63 chars because some Kubernetes name fields are limited to this (by the DNS naming spec).
-If release name contains chart name it will be used as a full name.
+===============================================================================
+Full Deployment Name
+===============================================================================
 */}}
+
 {{- define "automation-deployment.fullname" -}}
-{{- if .Values.fullnameOverride }}
-{{- .Values.fullnameOverride | trunc 63 | trimSuffix "-" }}
-{{- else }}
-{{- $name := default .Chart.Name .Values.nameOverride }}
-{{- if contains $name .Release.Name }}
-{{- .Release.Name | trunc 63 | trimSuffix "-" }}
-{{- else }}
-{{- printf "%s-%s" .Release.Name $name | trunc 63 | trimSuffix "-" }}
-{{- end }}
-{{- end }}
+{{ .Values.deployment.name }}
 {{- end }}
 
 {{/*
-Create chart name and version as used by the chart label.
+===============================================================================
+Chart Version
+===============================================================================
 */}}
+
 {{- define "automation-deployment.chart" -}}
-{{- printf "%s-%s" .Chart.Name .Chart.Version | replace "+" "_" | trunc 63 | trimSuffix "-" }}
+{{ printf "%s-%s" .Chart.Name .Chart.Version }}
 {{- end }}
 
 {{/*
-Common labels
+===============================================================================
+Namespace
+===============================================================================
 */}}
-{{- define "automation-deployment.labels" -}}
-helm.sh/chart: {{ include "automation-deployment.chart" . }}
-{{ include "automation-deployment.selectorLabels" . }}
-{{- if .Chart.AppVersion }}
-app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
-{{- end }}
-app.kubernetes.io/managed-by: {{ .Release.Service }}
+
+{{- define "automation-deployment.namespace" -}}
+{{ .Values.namespace }}
 {{- end }}
 
 {{/*
-Selector labels
+===============================================================================
+Deployment Name
+===============================================================================
 */}}
+
+{{- define "automation-deployment.deployment" -}}
+{{ .Values.deployment.name }}
+{{- end }}
+
+{{/*
+===============================================================================
+Service Name
+===============================================================================
+*/}}
+
+{{- define "automation-deployment.service" -}}
+{{ .Values.service.name }}
+{{- end }}
+
+{{/*
+===============================================================================
+ConfigMap Name
+===============================================================================
+*/}}
+
+{{- define "automation-deployment.configmap" -}}
+{{ .Values.configMap.name }}
+{{- end }}
+
+{{/*
+===============================================================================
+Secret Name
+===============================================================================
+*/}}
+
+{{- define "automation-deployment.secret" -}}
+{{ .Values.secretRef.name }}
+{{- end }}
+
+{{/*
+===============================================================================
+Docker Image
+===============================================================================
+*/}}
+
+{{- define "automation-deployment.image" -}}
+{{ .Values.image.registry }}/{{ .Values.image.repository }}/{{ .Values.image.name }}:{{ .Values.image.tag }}
+{{- end }}
+
+{{/*
+===============================================================================
+Selector Labels
+===============================================================================
+*/}}
+
 {{- define "automation-deployment.selectorLabels" -}}
+app: {{ .Values.deployment.name }}
+{{- end }}
+
+{{/*
+===============================================================================
+Common Labels
+===============================================================================
+*/}}
+
+{{- define "automation-deployment.labels" -}}
+app: {{ .Values.deployment.name }}
 app.kubernetes.io/name: {{ include "automation-deployment.name" . }}
 app.kubernetes.io/instance: {{ .Release.Name }}
-{{- end }}
-
-{{/*
-Create the name of the service account to use
-*/}}
-{{- define "automation-deployment.serviceAccountName" -}}
-{{- if .Values.serviceAccount.create }}
-{{- default (include "automation-deployment.fullname" .) .Values.serviceAccount.name }}
-{{- else }}
-{{- default "default" .Values.serviceAccount.name }}
-{{- end }}
+app.kubernetes.io/version: {{ .Values.image.tag | quote }}
+app.kubernetes.io/managed-by: {{ .Release.Service }}
+helm.sh/chart: {{ include "automation-deployment.chart" . }}
 {{- end }}
