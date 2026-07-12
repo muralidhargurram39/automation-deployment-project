@@ -8,6 +8,10 @@ The pipeline automates the complete software delivery lifecycle—from source co
 
 The project follows enterprise DevOps best practices including Pipeline as Code, Infrastructure as Code principles, modular automation scripts, and comprehensive deployment verification.
 
+## Architecture
+
+![Architecture](docs/images/architecture-overview.png)
+
 3. Tech Stack
 
 | Category            | Technology                    |
@@ -27,61 +31,7 @@ The project follows enterprise DevOps best practices including Pipeline as Code,
 
 ## Pipeline
 
-GitHub
-    │
-    ▼
-Jenkins Pipeline
-    │
-    ▼
-Compile
-    │
-    ▼
-Unit Test
-    │
-    ▼
-SonarQube Analysis
-    │
-    ▼
-Quality Gate
-    │
-    ▼
-Package WAR
-    │
-    ▼
-Publish Artifact to Nexus
-    │
-    ▼
-Download & Verify Artifact
-    │
-    ▼
-Filesystem Security Scan
-    │
-    ▼
-Docker Build
-    │
-    ▼
-Image Security Scan
-    │
-    ▼
-Push Docker Image
-    │
-    ▼
-Load Image into Kind
-    │
-    ▼
-Generate Helm Runtime Values
-    │
-    ▼
-Validate Helm Chart
-    │
-    ▼
-Deploy with Helm
-    │
-    ▼
-Verify Helm Release
-    │
-    ▼
-Smoke Test
+![Pipeline](docs/images/cicd-pipeline-flow.png)
 
 ## Project Status
 
@@ -119,16 +69,7 @@ Smoke Test
 
 ## Repository Structure
 
-automation-deployment-project/
-
-├── docs/
-├── helm/
-├── k8s/
-├── scripts/
-├── src/
-├── Jenkinsfile
-├── Dockerfile
-└── pom.xml
+![Repository](docs/images/repository-structure.png)
 
 ## Quick Start
 
