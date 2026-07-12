@@ -74,7 +74,7 @@ pipeline {
         // Kubernetes
         // ------------------------------------------------------------------
 
-        K8S_CLUSTER = "automation-deployment-cluster"
+        KIND_CLUSTER_NAME = "automation-deployment-cluster"
 
         K8S_NAMESPACE = "automation-deployment"
 
