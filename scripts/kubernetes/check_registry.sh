@@ -7,6 +7,7 @@ echo "Verify Docker Image in Nexus"
 echo "========================================"
 
 required_vars=(
+    REGISTRY_API
     DOCKER_REGISTRY
     DOCKER_REPOSITORY
     IMAGE_NAME
@@ -23,13 +24,14 @@ do
     fi
 done
 
-URL="http://${DOCKER_REGISTRY}/v2/${DOCKER_REPOSITORY}/${IMAGE_NAME}/manifests/${VERSION}"
+URL="http://${REGISTRY_API}/v2/${DOCKER_REPOSITORY}/${IMAGE_NAME}/manifests/${VERSION}"
 
 echo
-echo "Registry   : ${DOCKER_REGISTRY}"
-echo "Repository : ${DOCKER_REPOSITORY}"
-echo "Image      : ${IMAGE_NAME}"
-echo "Version    : ${VERSION}"
+echo "RegistryAPI   : ${REGISTRY_API}"
+echo "Registry      : ${DOCKER_REGISTRY}"
+echo "Repository    : ${DOCKER_REPOSITORY}"
+echo "Image         : ${IMAGE_NAME}"
+echo "Version       : ${VERSION}"
 
 echo
 echo "Checking Docker image in Nexus..."

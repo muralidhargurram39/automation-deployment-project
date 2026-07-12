@@ -46,8 +46,13 @@ pipeline {
         // ------------------------------------------------------------------
         // Docker Registry
         // ------------------------------------------------------------------
+	
+	// Docker CLI (host daemon)
+	DOCKER_REGISTRY = "localhost:8083"
 
-        DOCKER_REGISTRY = "nexus:8083"
+	// Registry API (inside Jenkins container)
+
+        REGISTRY_API = "nexus:8083"
 
         DOCKER_REPOSITORY = "docker-hosted"
 
