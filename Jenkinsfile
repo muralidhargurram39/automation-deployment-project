@@ -514,13 +514,6 @@ pipeline {
                 allowMissing: true
             ])
 
-            //
-            // Cleanup Workspace
-            //
-            cleanWs(
-                deleteDirs: true,
-                disableDeferredWipeout: true
-            )
         }
 
         success {
@@ -603,5 +596,12 @@ pipeline {
 
             echo "======================================"
         }
+        //
+        // Cleanup Workspace
+        //
+        cleanWs(
+            deleteDirs: true,
+            disableDeferredWipeout: true
+        )
     }
 }
