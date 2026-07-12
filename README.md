@@ -10,7 +10,6 @@ The project follows enterprise DevOps best practices including Pipeline as Code,
 
 3. Tech Stack
 
-|---------------------|-------------------------------|
 | Category            | Technology                    |
 |---------------------|-------------------------------|
 | Language            | Java 17                       |
@@ -25,7 +24,6 @@ The project follows enterprise DevOps best practices including Pipeline as Code,
 | Package Manager     | Helm                          |
 | Operating System    | Ubuntu WSL2                   |
 | Scripting           | Bash                          |
-|---------------------|-------------------------------|
 
 ## Pipeline
 
@@ -87,7 +85,6 @@ Smoke Test
 
 ## Project Status
 
-|-----------------------------------------|
 | Component                 | Status      |
 |---------------------------|-------------|
 | Jenkins CI/CD             | ✅ Complete |
@@ -102,7 +99,6 @@ Smoke Test
 | Smoke Testing             | ✅ Complete |
 | Release Verification      | ✅ Complete |
 | Rollback Support          | ✅ Complete |
-|-----------------------------------------|
 
 ## Features
 
@@ -183,4 +179,4 @@ Documentation includes:
 
 Enterprise DevOps | DevSecOps | Kubernetes | Cloud Automation
 
-GitHub: https://github.com/muralidhargurram39
+
