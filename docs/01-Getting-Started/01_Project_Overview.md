@@ -119,6 +119,77 @@ The pipeline performs the following activities:
 
 ---
 
+# 🏛 Architecture Design Decisions
+
+This project was designed using technologies that are widely adopted in enterprise DevOps environments. The following decisions were made to balance simplicity, maintainability, automation, and production readiness.
+
+| Technology | Decision | Rationale |
+|------------|----------|-----------|
+| **GitHub** | Source Code Management | Provides distributed version control, pull request workflows, and seamless integration with Jenkins. |
+| **Jenkins** | CI/CD Orchestration | Chosen for its mature plugin ecosystem, Pipeline as Code support, and flexibility to integrate with multiple DevOps tools. |
+| **Maven** | Build Automation | Standard Java build tool that automates dependency management, compilation, testing, and packaging. |
+| **SonarQube** | Static Code Analysis | Ensures code quality through automated inspection, code smell detection, bug identification, and quality gates before deployment. |
+| **Nexus Repository** | Artifact Management | Centralized storage for Maven artifacts and Docker images, enabling version control, traceability, and reliable deployments. |
+| **Docker** | Containerization | Packages the application and its dependencies into portable, reproducible containers that behave consistently across environments. |
+| **OWASP Dependency Check** | Dependency Security | Detects known vulnerabilities in third-party libraries before they reach production, strengthening the software supply chain. |
+| **Trivy** | Container Security | Performs fast filesystem and container image vulnerability scans to identify security risks during the pipeline. |
+| **Kind** | Kubernetes Platform | Lightweight Kubernetes cluster suitable for local development, CI environments, and automated testing without requiring cloud infrastructure. |
+| **Helm** | Kubernetes Package Manager | Simplifies Kubernetes deployments through reusable, version-controlled templates and supports upgrades and rollbacks. |
+| **Bash Scripts** | Automation | Modular shell scripts reduce duplication, improve readability, and make the deployment process easier to maintain. |
+
+---
+
+## Design Principles
+
+The project follows several engineering principles commonly adopted in enterprise environments:
+
+### Automation First
+
+Every stage—from build to deployment verification—is automated to reduce manual intervention and improve reliability.
+
+### Security by Default
+
+Security checks are integrated directly into the pipeline rather than treated as a separate process. Static analysis, dependency scanning, and container image scanning occur before deployment.
+
+### Infrastructure Consistency
+
+Containerization and Kubernetes ensure that applications run consistently across development, testing, and deployment environments.
+
+### Modularity
+
+Pipeline logic is divided into reusable shell scripts, making maintenance and future enhancements easier.
+
+### Repeatability
+
+Every pipeline execution follows the same automated workflow, ensuring predictable and reproducible deployments.
+
+### Observability
+
+Each pipeline stage provides clear logging and validation, making failures easier to identify and troubleshoot.
+
+### Scalability
+
+The architecture is designed so that local components such as Kind can later be replaced with managed Kubernetes platforms like Amazon EKS, Azure AKS, or Google GKE with minimal pipeline changes.
+
+---
+
+## Alternative Technologies Considered
+
+Several alternative tools could have been used. The following table explains why the selected technologies were chosen for this project.
+
+| Area | Selected | Alternatives |
+|------|----------|--------------|
+| CI/CD | Jenkins | GitHub Actions, GitLab CI, Azure DevOps |
+| Artifact Repository | Nexus Repository | JFrog Artifactory, GitHub Packages |
+| Kubernetes | Kind | Minikube, K3s, MicroK8s |
+| Security Scanning | Trivy | Grype, Clair, Snyk |
+| Code Quality | SonarQube | PMD, SpotBugs, CodeQL |
+| Package Management | Helm | Kustomize, Raw Kubernetes Manifests |
+
+The selected toolchain represents a practical combination of open-source technologies that closely resembles enterprise DevSecOps implementations while remaining easy to reproduce in a local development environment.
+
+---
+
 # 🔍 Key Features
 
 The project includes:
