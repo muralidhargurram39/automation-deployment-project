@@ -76,7 +76,7 @@ The pipeline performs the following activities:
 
 # 🏗 Enterprise Architecture
 
-![Enterprise Architecture](../images/architecture-overview.png)
+![Enterprise Architecture](../../images/architecture-overview.png)
 
 **Figure 1:** High-level architecture of the Enterprise DevSecOps CI/CD Pipeline.
 
@@ -84,7 +84,7 @@ The pipeline performs the following activities:
 
 # 🔄 CI/CD Workflow
 
-![CI/CD Pipeline](../images/cicd-pipeline-flow.png)
+![CI/CD Pipeline](../../images/cicd-pipeline-flow.png)
 
 **Figure 2:** End-to-end CI/CD pipeline from source code to Kubernetes deployment.
 
@@ -92,7 +92,7 @@ The pipeline performs the following activities:
 
 # 📁 Repository Structure
 
-![Repository Structure](../images/repository-structure.png)
+![Repository Structure](../../images/repository-structure.png)
 
 **Figure 3:** High-level repository organization.
 
