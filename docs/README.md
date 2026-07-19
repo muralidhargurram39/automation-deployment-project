@@ -796,10 +796,4 @@ As the project continues to evolve, this documentation will serve as the authori
 
 ---
 
-# Next Document
-
-Continue with:
-
-**`docs/01-Getting-Started/01_Project_Overview.md`**
-
 This document introduces the project architecture, objectives, technology stack, workflow, and the overall design of the Enterprise DevSecOps CI/CD Pipeline.
