@@ -795,5 +795,3 @@ By progressing through the documentation in the recommended order, readers will 
 As the project continues to evolve, this documentation will serve as the authoritative reference for deploying, operating, maintaining, and extending the platform.
 
 ---
-
-This document introduces the project architecture, objectives, technology stack, workflow, and the overall design of the Enterprise DevSecOps CI/CD Pipeline.
